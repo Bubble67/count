@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>極簡寫作統計工具</title>
+    <style>
+        :root {
+            --text-main: #2c3e50;
+            --text-sub: #7f8c8d;
+            --accent: #34495e;
+            --border: #e0e0e0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-main);
+            background-color: #ffffff;
+            line-height: 1.6;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .app-container {
+            width: 90%;
+            max-width: 900px;
+            margin-top: 50px;
+        }
+        /* 統計列樣式 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .stat-item { text-align: left; }
+        .stat-label { font-size: 12px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 24px; font-weight: 300; display: block; }
+
+        /* 控制列樣式 */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        select, input, button {
+            border: 1px solid var(--border);
+            background: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            outline: none;
+            color: var(--text-main);
+        }
+        button { cursor: pointer; transition: 0.2s; }
+        button:hover { background: #f9f9f9; border-color: #bbb; }
+        button:active { background: #eee; }
+
+        /* 輸入區樣式 */
+        textarea {
+            width: 100%;
+            height: 500px;
+            border: none;
+            font-size: 18px;
+            color: var(--text-main);
+            resize: none;
+            outline: none;
+            padding: 0;
+            background: transparent;
+        }
+        textarea::placeholder { color: #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="stats-grid">
+        <div class="stat-item">
+            <span class="stat-label">字數 (Words)</span>
+            <span class="stat-value" id="wordCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">字元數 (Chars)</span>
+            <span class="stat-value" id="charCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">不含空格</span>
+            <span class="stat-value" id="charNoSpaceCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">計時器</span>
+            <span class="stat-value" id="timerDisplay">00:00</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <select id="timerMode">
+            <option value="up">正計時</option>
+            <option value="down">倒計時</option>
+        </select>
+        <span id="downConfig" style="display:none;">
+            <input type="number" id="minutesInput" value="25" min="1" style="width: 50px;"> 分鐘
+        </span>
+        <button id="toggleBtn">開始</button>
+        <button id="resetBtn">重設</button>
+    </div>
+
+    <textarea id="editor" placeholder="在此處安靜地寫作..."></textarea>
+</div>
+
+<script>
+    const editor = document.getElementById('editor');
+    const wordCount = document.getElementById('wordCount');
+    const charCount = document.getElementById('charCount');
+    const charNoSpaceCount = document.getElementById('charNoSpaceCount');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerMode = document.getElementById('timerMode');
+    const downConfig = document.getElementById('downConfig');
+    const minutesInput = document.getElementById('minutesInput');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    let timer;
+    let seconds = 0;
+    let isRunning = false;
+
+    // --- 統計邏輯 ---
+    editor.addEventListener('input', () => {
+        const val = editor.value;
+        
+        // 1. 字元數 (全含)
+        charCount.innerText = val.length;
+        
+        // 2. 字元數 (不含空格/換行)
+        charNoSpaceCount.innerText = val.replace(/\s/g, '').length;
+        
+        // 3. 字數 (英文以單字計，中文以字計)
+        const words = val.trim().split(/\s+/).filter(item => item.length > 0);
+        wordCount.innerText = words.length;
+    });
+
+    // --- 計時邏輯 ---
+    timerMode.addEventListener('change', () => {
+        downConfig.style.display = (timerMode.value === 'down') ? 'inline' : 'none';
+        resetTimer();
+    });
+
+    function updateTimer() {
+        if (timerMode.value === 'up') {
+            seconds++;
+        } else {
+            seconds--;
+            if (seconds <= 0) {
+                stopTimer();
+                alert("時間到！寫作目標已完成。");
+            }
+        }
+        renderTime();
+    }
+
+    function renderTime() {
+        const m = Math.floor(Math.abs(seconds) / 60).toString().padStart(2, '0');
+        const s = (Math.abs(seconds) % 60).toString().padStart(2, '0');
+        timerDisplay.innerText = `${m}:${s}`;
+    }
+
+    function stopTimer() {
+        clearInterval(timer);
+        isRunning = false;
+        toggleBtn.innerText = "開始";
+    }
+
+    function resetTimer() {
+        stopTimer();
+        if (timerMode.value === 'down') {
+            seconds = parseInt(minutesInput.value) * 60;
+        } else {
+            seconds = 0;
+        }
+        renderTime();
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        if (isRunning) {
+            stopTimer();
+        } else {
+            if (timerMode.value === 'down' && seconds <= 0) {
+                seconds = parseInt(minutesInput.value) * 60;
+            }
+            timer = setInterval(updateTimer, 1000);
+            isRunning = true;
+            toggleBtn.innerText = "暫停";
+        }
+    });
+
+    resetBtn.addEventListener('click', resetTimer);
+
+    // 初始初始化
+    renderTime();
+</script>
+
+</body>
+</html>
